@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 300px;
+      padding: 10px;
+    }
+    .option {
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h3>书签整理工具</h3>
+  
+  <div class="option">
+    <label>分类方式：</label>
+    <select id="categorize-by">
+      <option value="domain">按域名分类</option>
+      <option value="title">按网页标题分类</option>
+    </select>
+  </div>
+
+  <div class="option">
+    <button id="organize-chrome">整理Chrome书签</button>
+  </div>
+
+  <div id="status"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html> 

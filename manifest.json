@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Bookmark Organizer",
+  "version": "1.0",
+  "description": "自动对Chrome书签进行分类整理",
+  "permissions": [
+    "bookmarks",
+    "activeTab"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+} 
