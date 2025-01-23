@@ -2,32 +2,42 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <style>
-    body {
-      width: 300px;
-      padding: 10px;
-    }
-    .option {
-      margin: 10px 0;
-    }
-  </style>
+  <title>书签整理</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="popup.css" rel="stylesheet">
 </head>
-<body>
-  <h3>书签整理工具</h3>
-  
-  <div class="option">
-    <label>分类方式：</label>
-    <select id="categorize-by">
-      <option value="domain">按域名分类</option>
-      <option value="title">按网页标题分类</option>
-    </select>
-  </div>
+<body class="container p-3">
+  <div class="card">
+    <div class="card-header">
+      <h5 class="card-title mb-0">书签整理工具</h5>
+    </div>
+    <div class="card-body">
+      <div class="mb-3">
+        <label for="categorize-by" class="form-label">分类方式</label>
+        <select class="form-select" id="categorize-by">
+          <option value="domain">按域名分类</option>
+          <option value="title">按标题分类</option>
+        </select>
+      </div>
 
-  <div class="option">
-    <button id="organize-chrome">整理Chrome书签</button>
-  </div>
+      <div class="mb-3 form-check">
+        <input type="checkbox" class="form-check-input" id="check-invalid">
+        <label class="form-check-label" for="check-invalid">检查失效链接</label>
+      </div>
 
-  <div id="status"></div>
+      <div class="progress mb-3" style="height: 20px;">
+        <div class="progress-bar" id="progress-bar" role="progressbar" style="width: 0%;" 
+             aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+      </div>
+
+      <div id="status" class="alert alert-info mb-3" style="display: none;"></div>
+
+      <button id="organize-chrome" class="btn btn-primary w-100">
+        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+        开始整理
+      </button>
+    </div>
+  </div>
 
   <script src="popup.js"></script>
 </body>

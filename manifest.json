@@ -5,7 +5,10 @@
   "description": "自动对Chrome书签进行分类整理",
   "permissions": [
     "bookmarks",
-    "activeTab"
+    "windows"
+  ],
+  "host_permissions": [
+    "<all_urls>"
   ],
   "action": {
     "default_popup": "popup.html"
