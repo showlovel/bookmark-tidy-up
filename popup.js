@@ -73,6 +73,33 @@ document.addEventListener('DOMContentLoaded', async function() {
       spinner.classList.add('d-none');
     }
   });
+
+  // 添加分类方式切换监听
+  const smartCategoriesDiv = document.getElementById('smart-categories');
+  
+  categorizeSelect.addEventListener('change', function() {
+    smartCategoriesDiv.style.display = 
+      this.value === 'smart' ? 'block' : 'none';
+  });
+
+  // 添加保存 API Key 的事件监听
+  document.getElementById('save-api-key').addEventListener('click', async function() {
+    const apiKey = document.getElementById('apiKey').value;
+    if (apiKey) {
+      try {
+        await chrome.storage.sync.set({ openaiApiKey: apiKey });
+        alert('API Key 设置成功！');
+        // 关闭模态框
+        const modal = bootstrap.Modal.getInstance(document.getElementById('settingsModal'));
+        modal.hide();
+      } catch (error) {
+        console.error('设置 API Key 失败:', error);
+        alert('设置 API Key 失败，请重试。');
+      }
+    } else {
+      alert('请输入有效的 API Key！');
+    }
+  });
 });
 
 async function organizeBookmarks(bookmarkTree, categorizeBy) {
@@ -82,7 +109,8 @@ async function organizeBookmarks(bookmarkTree, categorizeBy) {
   
   const categoryNameMap = {
     'domain': '按域名',
-    'title': '按标题'
+    'title': '按标题',
+    'smart': '智能分类'
   };
   
   // 获取用户是否选择检查失效链接
@@ -100,8 +128,11 @@ async function organizeBookmarks(bookmarkTree, categorizeBy) {
   const now = new Date();
   const currentDate = now.toISOString().split('T')[0];
   const currentTime = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+  
+  // 确保文件夹名称正确
+  const folderPrefix = categoryNameMap[categorizeBy] || '未知分类';
   const categoryFolder = await chrome.bookmarks.create({
-    title: `${categoryNameMap[categorizeBy]}_${currentDate}_${currentTime}`
+    title: `${folderPrefix}_${currentDate}_${currentTime}`
   });
 
   // 只在需要检查失效链接时创建失效链接文件夹
@@ -136,6 +167,84 @@ async function organizeBookmarks(bookmarkTree, categorizeBy) {
     }
   }
 
+  // 获取智能分类的类别
+  let userCategories = [];
+  if (categorizeBy === 'smart') {
+    const categoryInput = document.getElementById('category-input').value;
+    userCategories = categoryInput.split('\n')
+      .map(cat => cat.trim())
+      .filter(cat => cat.length > 0);
+    
+    if (userCategories.length === 0) {
+      throw new Error('请至少输入一个分类类别！');
+    }
+  }
+
+  // 修改获取分类的逻辑
+  async function getCategory(bookmark) {
+    if (categorizeBy === 'smart') {
+      try {
+        // 获取保存的 API key
+        const storageResult = await chrome.storage.sync.get(['openaiApiKey']);
+        const apiKey = storageResult.openaiApiKey;
+        
+        if (!apiKey) {
+          throw new Error('请先在扩展设置中配置 OpenAI API Key');
+        }
+
+        const prompt = `请将以下书签分类到这些类别中的一个：${userCategories.join('、')}
+书签标题：${bookmark.title}
+书签URL：${bookmark.url}
+请只返回一个最合适的类别名称，不需要任何解释。`;
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: "gpt-3.5-turbo",
+            messages: [{
+              role: "user",
+              content: prompt
+            }],
+            temperature: 0.3,
+            max_tokens: 50
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const aiResult = data.choices[0]?.message?.content?.trim() || '其他';
+        
+        return userCategories.find(cat => 
+          aiResult.toLowerCase().includes(cat.toLowerCase())
+        ) || '其他';
+      } catch (error) {
+        console.error('AI分类失败:', error);
+        updateStatus(`AI分类失败: ${error.message}`, 'warning');
+        return '其他';
+      }
+    } else {
+      // 原有的分类逻辑
+      switch (categorizeBy) {
+        case 'domain':
+          const hostname = new URL(bookmark.url).hostname;
+          const domainParts = hostname.split('.');
+          if (domainParts.length >= 2) {
+            return domainParts.slice(-2).join('.');
+          }
+          return hostname;
+        case 'title':
+          return bookmark.title.split(' ')[0];
+      }
+    }
+  }
+
   async function traverseBookmarks(node) {
     if (node.title && node.title.includes(categoryNameMap[categorizeBy])) {
       return;
@@ -152,7 +261,6 @@ async function organizeBookmarks(bookmarkTree, categorizeBy) {
         return;
       }
       
-      // 使用 updateStatus 函数而不是直接操作 statusDiv
       updateStatus(`正在处理第 ${processedBookmarks + 1}/${totalBookmarks} 个书签: ${node.title}`);
       
       const isValid = await isValidUrl(node.url);
@@ -169,21 +277,8 @@ async function organizeBookmarks(bookmarkTree, categorizeBy) {
         return;
       }
 
-      let category;
-      switch (categorizeBy) {
-        case 'domain':
-          const hostname = new URL(node.url).hostname;
-          const domainParts = hostname.split('.');
-          if (domainParts.length >= 2) {
-            category = domainParts.slice(-2).join('.');
-          } else {
-            category = hostname;
-          }
-          break;
-        case 'title':
-          category = node.title.split(' ')[0];
-          break;
-      }
+      // 使用新的 getCategory 函数
+      const category = await getCategory(node);
       
       if (!categories[category]) {
         categories[category] = [];

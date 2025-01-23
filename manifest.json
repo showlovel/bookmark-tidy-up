@@ -1,19 +1,30 @@
 {
-  "manifest_version": 3,
-  "name": "Bookmark Organizer",
-  "version": "1.0",
-  "description": "自动对Chrome书签进行分类整理",
-  "permissions": [
-    "bookmarks",
-    "windows"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
   "action": {
     "default_popup": "popup.html"
   },
   "background": {
     "service_worker": "background.js"
-  }
-} 
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"], 
+      "js": [
+        "js/bootstrap.bundle.min.js"
+      ]
+    }
+  ],
+  "description": "自动对Chrome书签进行分类整理",
+  "host_permissions": [
+    "<all_urls>",
+    "https://api.openai.com/*"
+  ],
+  "manifest_version": 3,
+  "name": "Bookmark Organizer",
+  "options_page": "options.html",
+  "permissions": [
+    "bookmarks",
+    "windows",
+    "storage"
+  ],
+  "version": "1.0"
+}

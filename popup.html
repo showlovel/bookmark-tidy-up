@@ -17,7 +17,18 @@
         <select class="form-select" id="categorize-by">
           <option value="domain">按域名分类</option>
           <option value="title">按标题分类</option>
+          <option value="smart">智能分类</option>
         </select>
+      </div>
+
+      <div id="smart-categories" class="mb-3" style="display: none;">
+        <label class="form-label">自定义分类（每行一个）</label>
+        <textarea class="form-control" id="category-input" rows="4" 
+                  placeholder="例如：
+技术
+娱乐
+生活
+学习"></textarea>
       </div>
 
       <div class="mb-3 form-check">
@@ -36,9 +47,34 @@
         <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
         开始整理
       </button>
+
+      <button id="open-settings" class="btn btn-secondary w-100 mt-2" data-bs-toggle="modal" data-bs-target="#settingsModal">设置 API</button>
+    </div>
+  </div>
+
+  <!-- 模态框 -->
+  <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="settingsModalLabel">设置 OpenAI API Key</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="apiKey" class="form-label">OpenAI API Key</label>
+            <input type="password" class="form-control" id="apiKey">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+          <button type="button" class="btn btn-primary" id="save-api-key">保存</button>
+        </div>
+      </div>
     </div>
   </div>
 
   <script src="popup.js"></script>
+  <script src="js/bootstrap.bundle.min.js"></script>
 </body>
 </html> 
