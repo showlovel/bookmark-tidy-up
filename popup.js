@@ -21,36 +21,6 @@ function updateStatus(message, type = 'info') {
 }
 
 document.addEventListener('DOMContentLoaded', async function() {
-  // 检查是否已有打开的窗口
-  const windows = await chrome.windows.getAll();
-  const currentWindow = await chrome.windows.getCurrent();
-  
-  const existingPopup = windows.find(window => 
-    window.type === 'popup' && 
-    window.id !== currentWindow.id
-  );
-
-  if (existingPopup) {
-    // 如果已有窗口，则聚焦并关闭当前popup
-    chrome.windows.update(existingPopup.id, { focused: true });
-    window.close();
-    return;
-  }
-
-  if (!isWindowCreated && currentWindow.type !== 'popup') {
-    isWindowCreated = true;
-    // 创建新窗口
-    chrome.windows.create({
-      url: 'popup.html',
-      type: 'popup',
-      width: 400,
-      height: 600,
-      focused: true
-    });
-    // 关闭原始popup
-    window.close();
-  }
-
   // 原有的按钮和选择框事件监听保持不变
   const organizeBtn = document.getElementById('organize-chrome');
   const categorizeSelect = document.getElementById('categorize-by');
@@ -146,6 +116,67 @@ async function organizeBookmarks(bookmarkTree, categorizeBy) {
 
   const categories = {};
   const addedUrls = new Set();
+
+  async function getDeepSeekResponse(prompt, apiKey) {
+    try {
+      const response = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            {
+              role: "system",
+              content: "你是一个智能助手，你的任务是根据用户提供的书签标题和URL来分类这些书签。你需要根据用户的指示对这些书签进行归类，并给出具体的类别名称。"
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 50,
+          frequency_penalty: 0,
+          presence_penalty: 0,
+          response_format: {
+            type: "text"
+          },
+          stream: false
+        })
+      });
+  
+      if (response.ok) {
+        const data = await response.json();
+        return data.choices[0].message.content;
+      } else {
+        console.error("Error:", response.status, await response.text());
+        return null;
+      }
+    } catch (error) {
+      console.error("Fetch error:", error);
+      return null;
+    }
+  }
+
+  async function getContentOfUrl(url) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const response = await fetch(url, {
+        signal: controller.signal
+      })
+      if (response.ok) {
+        return response.text();
+      } else {
+        return "无法访问网页";
+      }
+    } catch (error) {
+      return "无法访问网页"
+    }
+  }
   
   async function isValidUrl(url) {
     if (!shouldCheckInvalid) return true;
@@ -186,44 +217,27 @@ async function organizeBookmarks(bookmarkTree, categorizeBy) {
       try {
         // 获取保存的 API key
         const storageResult = await chrome.storage.sync.get(['openaiApiKey']);
-        const apiKey = storageResult.openaiApiKey;
+        // const apiKey = storageResult.openaiApiKey;
+        const apiKey = "sk-9a9d01383a7d401db6def065c49c9cb2"
         
         if (!apiKey) {
           throw new Error('请先在扩展设置中配置 OpenAI API Key');
         }
 
+        urlContent = await getContentOfUrl(bookmark.url)
+
         const prompt = `请将以下书签分类到这些类别中的一个：${userCategories.join('、')}
-书签标题：${bookmark.title}
-书签URL：${bookmark.url}
-请只返回一个最合适的类别名称，不需要任何解释。`;
+书签标题: ${bookmark.title}
+书签URL: ${bookmark.url}
+书签内容: ${urlContent}
+如果书签内容为 无法访问网页 则不需要参考书签内容
+请只返回一个最合适的类别名称，不需要任何解释`;
 
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: "gpt-3.5-turbo",
-            messages: [{
-              role: "user",
-              content: prompt
-            }],
-            temperature: 0.3,
-            max_tokens: 50
-          })
-        });
+        const response = await getDeepSeekResponse(prompt, apiKey);
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        console.log('AI分类结果:', response);
 
-        const data = await response.json();
-        const aiResult = data.choices[0]?.message?.content?.trim() || '其他';
-        
-        return userCategories.find(cat => 
-          aiResult.toLowerCase().includes(cat.toLowerCase())
-        ) || '其他';
+        return response;
       } catch (error) {
         console.error('AI分类失败:', error);
         updateStatus(`AI分类失败: ${error.message}`, 'warning');
